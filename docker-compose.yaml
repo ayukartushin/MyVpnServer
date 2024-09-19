@@ -1,0 +1,65 @@
+version: '3'
+services:
+  nginx-proxy-manager:
+    image: jc21/nginx-proxy-manager:latest
+    container_name: nginx-proxy-manager
+    restart: always
+    ports:
+      - "80:80"        # HTTP порт
+      - "81:81"        # HTTP порт админки, после настройки удалить
+      - "443:443"      # HTTPS порт
+    volumes:
+      - ./data:/data
+      - ./letsencrypt:/etc/letsencrypt
+    networks:
+      - mynet
+
+  mongo:
+    image: mongo:latest
+    container_name: pritunldb
+    hostname: pritunldb
+    volumes:
+      - ./db:/data/db
+    networks:
+      - mynet
+
+  pritunl:
+    image: goofball222/pritunl:latest
+    container_name: pritunl
+    hostname: pritunl
+    depends_on:
+        - mongo
+    privileged: true
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=0
+    links:
+      - mongo
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      - 1194:1194
+      - 1194:1194/udp
+      - 1195:1195/udp
+    environment:
+      - TZ=UTC+3
+    networks:
+      - mynet
+
+  3x-ui:
+    image: ghcr.io/mhsanaei/3x-ui:latest
+    container_name: 3x-ui
+    hostname: 3x-ui.vpn.kartushin.su
+    volumes:
+      - $PWD/db/:/etc/x-ui/
+      - $PWD/cert/:/root/cert/
+    environment:
+      - TZ=UTC+3
+    tty: true
+    restart: always
+    networks:
+      - mynet
+
+
+networks:
+  mynet:
+    driver: bridge
